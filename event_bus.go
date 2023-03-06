@@ -2,6 +2,7 @@ package event_bus
 
 import (
 	"reflect"
+	"sync"
 )
 
 type Handler interface {
@@ -16,7 +17,9 @@ type EventBus interface {
 }
 
 func NewEventBus() EventBus {
-	return &eventBus{}
+	return &eventBus{
+		mutex: sync.Mutex{},
+	}
 }
 
 type eventHandlerMeta struct {
@@ -26,6 +29,7 @@ type eventHandlerMeta struct {
 
 type eventBus struct {
 	handlers []eventHandlerMeta
+	mutex    sync.Mutex
 }
 
 func validate(arg, origin reflect.Type) bool {
@@ -43,6 +47,9 @@ func (bus *eventBus) tryCall(e Event, meta eventHandlerMeta) bool {
 }
 
 func (bus *eventBus) Subscribe(h Handler) bool {
+	bus.mutex.Lock()
+	defer bus.mutex.Unlock()
+
 	meta := eventHandlerMeta{
 		handler: h,
 	}
@@ -77,6 +84,9 @@ func (bus *eventBus) Subscribe(h Handler) bool {
 }
 
 func (bus *eventBus) Fire(e Event) {
+	bus.mutex.Lock()
+	defer bus.mutex.Unlock()
+
 	for _, h := range bus.handlers {
 		bus.tryCall(e, h)
 	}
