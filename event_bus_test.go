@@ -6,11 +6,16 @@ import (
 )
 
 func TestNewEventBus(t *testing.T) {
-	bus := NewEventBus()
+	bus := New()
 	if bus == nil {
 		t.Log("New EventBus not created!")
 		t.Fail()
 	}
+
+	bus = New(
+		WithCacheSize(10),
+		WithPoolSize(0),
+	)
 }
 
 type failHandler struct {
@@ -50,7 +55,7 @@ func (h wrongEventArgsHandler) OnEvent(s string, v int) {
 }
 
 func TestSubscribe(t *testing.T) {
-	bus := NewEventBus()
+	bus := New()
 	if true == bus.Subscribe(func() {}) {
 		log.Print("fail: callback no args")
 		t.Fail()
@@ -86,7 +91,7 @@ func TestSubscribe(t *testing.T) {
 }
 
 func TestFire(t *testing.T) {
-	bus := NewEventBus()
+	bus := New()
 	bus.Subscribe(func(b EventBus, s string) {
 		if s != "test" {
 			t.Fail()

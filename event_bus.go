@@ -2,6 +2,7 @@ package event_bus
 
 import (
 	"reflect"
+	"runtime"
 	"sync"
 )
 
@@ -11,15 +12,70 @@ type Handler interface {
 type Event interface {
 }
 
+type Options struct {
+	cacheSize int
+	poolSize  int
+}
+
+type Option func(*Options)
+
+func defaultConfig() *Options {
+	return &Options{
+		cacheSize: 1,
+		poolSize:  1,
+	}
+}
+
+func WithCacheSize(cacheSize int) Option {
+	return func(cfg *Options) {
+		cfg.cacheSize = cacheSize
+	}
+}
+
+func WithPoolSize(poolSize int) Option {
+	if poolSize <= 0 {
+		poolSize = runtime.NumCPU()
+	}
+	return func(cfg *Options) {
+		cfg.poolSize = poolSize
+	}
+}
+
 type EventBus interface {
 	Subscribe(h Handler) bool
 	Fire(e Event)
 }
 
-func NewEventBus() EventBus {
-	return &eventBus{
-		mutex: sync.Mutex{},
+func New(opts ...Option) EventBus {
+	var options = defaultConfig()
+	for _, opt := range opts {
+		opt(options)
 	}
+
+	bus := &eventBus{
+		mutex: sync.Mutex{},
+		bus:   make(chan Event, options.cacheSize),
+	}
+
+	for idx := 0; idx < options.poolSize; idx++ {
+		go func() {
+			for e := range bus.bus {
+				bus.mutex.Lock()
+				copyHandlers := make([]eventHandlerMeta, len(bus.handlers))
+				copy(copyHandlers, bus.handlers)
+				bus.mutex.Unlock()
+				for _, h := range copyHandlers {
+					bus.tryCall(e, h)
+				}
+			}
+		}()
+	}
+
+	return bus
+}
+
+func (bus *eventBus) Shutdown() {
+	close(bus.bus)
 }
 
 type eventHandlerMeta struct {
@@ -30,6 +86,7 @@ type eventHandlerMeta struct {
 type eventBus struct {
 	handlers []eventHandlerMeta
 	mutex    sync.Mutex
+	bus      chan Event
 }
 
 func validate(arg, origin reflect.Type) bool {
@@ -84,10 +141,5 @@ func (bus *eventBus) Subscribe(h Handler) bool {
 }
 
 func (bus *eventBus) Fire(e Event) {
-	bus.mutex.Lock()
-	defer bus.mutex.Unlock()
-
-	for _, h := range bus.handlers {
-		bus.tryCall(e, h)
-	}
+	bus.bus <- e
 }
