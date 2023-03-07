@@ -19,13 +19,6 @@ type Options struct {
 
 type Option func(*Options)
 
-func defaultConfig() *Options {
-	return &Options{
-		cacheSize: 1,
-		poolSize:  1,
-	}
-}
-
 func WithCacheSize(cacheSize int) Option {
 	return func(cfg *Options) {
 		cfg.cacheSize = cacheSize
@@ -44,10 +37,15 @@ func WithPoolSize(poolSize int) Option {
 type EventBus interface {
 	Subscribe(h Handler) bool
 	Fire(e Event)
+	Shutdown()
 }
 
 func New(opts ...Option) EventBus {
-	var options = defaultConfig()
+	var options = &Options{
+		cacheSize: 1,
+		poolSize:  1,
+	}
+
 	for _, opt := range opts {
 		opt(options)
 	}

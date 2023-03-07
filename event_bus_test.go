@@ -12,10 +12,14 @@ func TestNewEventBus(t *testing.T) {
 		t.Fail()
 	}
 
+	bus.Shutdown()
+
 	bus = New(
 		WithCacheSize(10),
 		WithPoolSize(0),
 	)
+
+	bus.Shutdown()
 }
 
 type failHandler struct {

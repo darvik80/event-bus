@@ -12,7 +12,10 @@ func (h handler) OnEvent(bus event_bus.EventBus, s string) {
 }
 
 ...
-bus := event_bus.NewEventBus()
+bus := event_bus.New()
+...
+bus := event_bus.New(WithCacheSize(10), WitchPoolSize(0))
+...
 bus.Subscribe(func(_ event_bus.EventBus, s string) {
     log.Infof("Handle event: %s", s)
 })
