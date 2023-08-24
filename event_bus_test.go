@@ -2,7 +2,9 @@ package event_bus
 
 import (
 	"log"
+	"sync"
 	"testing"
+	"time"
 )
 
 func TestNewEventBus(t *testing.T) {
@@ -113,4 +115,36 @@ func TestFire(t *testing.T) {
 	}
 
 	bus.Fire("test")
+}
+
+func TestSchedule(t *testing.T) {
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	bus := New()
+	bus.Subscribe(func(b EventBus, s string) {
+		if s != "test" {
+			t.Fail()
+		}
+		wg.Done()
+	})
+
+	bus.Schedule(time.Second, false, "test")
+	wg.Wait()
+}
+
+func TestSchedulePeriodic(t *testing.T) {
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	bus := New()
+	bus.Subscribe(func(b EventBus, s string) {
+		if s != "test" {
+			t.Fail()
+		}
+		wg.Done()
+	})
+
+	bus.Schedule(time.Second, true, "test")
+	wg.Wait()
 }

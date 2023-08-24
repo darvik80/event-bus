@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"runtime"
 	"sync"
+	"time"
 )
 
 type Handler interface {
@@ -37,6 +38,7 @@ func WithPoolSize(poolSize int) Option {
 type EventBus interface {
 	Subscribe(h Handler) bool
 	Fire(e Event)
+	Schedule(d time.Duration, rep bool, e Event)
 	Shutdown()
 }
 
@@ -140,4 +142,19 @@ func (bus *eventBus) Subscribe(h Handler) bool {
 
 func (bus *eventBus) Fire(e Event) {
 	bus.bus <- e
+}
+
+func (bus *eventBus) Schedule(d time.Duration, rep bool, e Event) {
+	go func() {
+		if rep {
+			ticker := time.NewTicker(d)
+			for range ticker.C {
+				bus.Fire(e)
+			}
+		} else {
+			time.AfterFunc(d, func() {
+				bus.Fire(e)
+			})
+		}
+	}()
 }

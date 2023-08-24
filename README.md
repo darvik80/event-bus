@@ -26,4 +26,8 @@ bus.Subscribe(h)
 ...
 bus.Fire("Hello World!")
 
+bus.Schedule(time.Second, false, "Hello World once!")
+
+bus.Schedule(time.Second, true, "Hello World periodic!")
+
 ```
