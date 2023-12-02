@@ -38,6 +38,7 @@ func WithPoolSize(poolSize int) Option {
 type EventBus interface {
 	Subscribe(h Handler) bool
 	Fire(e Event)
+	Send(e Event)
 	Schedule(d time.Duration, rep bool, e Event)
 	Shutdown()
 }
@@ -60,13 +61,7 @@ func New(opts ...Option) EventBus {
 	for idx := 0; idx < options.poolSize; idx++ {
 		go func() {
 			for e := range bus.bus {
-				bus.mutex.Lock()
-				copyHandlers := make([]eventHandlerMeta, len(bus.handlers))
-				copy(copyHandlers, bus.handlers)
-				bus.mutex.Unlock()
-				for _, h := range copyHandlers {
-					bus.tryCall(e, h)
-				}
+				bus.callHandlers(e)
 			}
 		}()
 	}
@@ -91,6 +86,16 @@ type eventBus struct {
 
 func validate(arg, origin reflect.Type) bool {
 	return arg.Name() == origin.Name() && arg.PkgPath() == origin.PkgPath()
+}
+
+func (bus *eventBus) callHandlers(e Event) {
+	bus.mutex.Lock()
+	copyHandlers := make([]eventHandlerMeta, len(bus.handlers))
+	copy(copyHandlers, bus.handlers)
+	bus.mutex.Unlock()
+	for _, h := range copyHandlers {
+		bus.tryCall(e, h)
+	}
 }
 
 func (bus *eventBus) tryCall(e Event, meta eventHandlerMeta) bool {
@@ -142,6 +147,10 @@ func (bus *eventBus) Subscribe(h Handler) bool {
 
 func (bus *eventBus) Fire(e Event) {
 	bus.bus <- e
+}
+
+func (bus *eventBus) Send(e Event) {
+	bus.callHandlers(e)
 }
 
 func (bus *eventBus) Schedule(d time.Duration, rep bool, e Event) {

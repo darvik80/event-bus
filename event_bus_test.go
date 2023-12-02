@@ -117,6 +117,27 @@ func TestFire(t *testing.T) {
 	bus.Fire("test")
 }
 
+func TestSend(t *testing.T) {
+	bus := New()
+	bus.Subscribe(func(b EventBus, s string) {
+		if s != "test" {
+			t.Fail()
+		}
+	})
+
+	s := &successHandler{}
+	if false == bus.Subscribe(s) {
+		t.Fail()
+	}
+
+	w := &wrongEventHandler{}
+	if false == bus.Subscribe(w) {
+		t.Fail()
+	}
+
+	bus.Send("test")
+}
+
 func TestSchedule(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(1)
