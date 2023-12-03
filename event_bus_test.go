@@ -97,11 +97,25 @@ func TestSubscribe(t *testing.T) {
 }
 
 func TestFire(t *testing.T) {
+	var wg sync.WaitGroup
+	wg.Add(2)
+
 	bus := New()
 	bus.Subscribe(func(b EventBus, s string) {
 		if s != "test" {
 			t.Fail()
 		}
+		wg.Done()
+	})
+
+	bus.Subscribe(func(b EventBus, s Source, e string) {
+		if s != b {
+			t.Fail()
+		}
+		if e != "test" {
+			t.Fail()
+		}
+		wg.Done()
 	})
 
 	s := &successHandler{}
@@ -114,7 +128,47 @@ func TestFire(t *testing.T) {
 		t.Fail()
 	}
 
-	bus.Fire("test")
+	bus.Fire(bus, "test")
+	wg.Wait()
+}
+
+func TestFireAnonymous(t *testing.T) {
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	bus := New()
+	bus.Subscribe(func(b EventBus, s string) {
+		if s != "test" {
+			t.Fail()
+		}
+
+		wg.Done()
+	})
+
+	bus.Subscribe(func(b EventBus, s Source, e string) {
+		if s != b {
+			t.Fail()
+		}
+		if e != "test" {
+			t.Fail()
+		}
+
+		wg.Done()
+	})
+
+	s := &successHandler{}
+	if false == bus.Subscribe(s) {
+		t.Fail()
+	}
+
+	w := &wrongEventHandler{}
+	if false == bus.Subscribe(w) {
+		t.Fail()
+	}
+
+	bus.FireAnonymous("test")
+
+	wg.Wait()
 }
 
 func TestSend(t *testing.T) {
@@ -125,6 +179,15 @@ func TestSend(t *testing.T) {
 		}
 	})
 
+	bus.Subscribe(func(b EventBus, s Source, e string) {
+		if s != b {
+			t.Fail()
+		}
+		if e != "test" {
+			t.Fail()
+		}
+	})
+
 	s := &successHandler{}
 	if false == bus.Subscribe(s) {
 		t.Fail()
@@ -135,7 +198,37 @@ func TestSend(t *testing.T) {
 		t.Fail()
 	}
 
-	bus.Send("test")
+	bus.Send(bus, "test")
+}
+
+func TestSendAnonymous(t *testing.T) {
+	bus := New()
+	bus.Subscribe(func(b EventBus, s string) {
+		if s != "test" {
+			t.Fail()
+		}
+	})
+
+	bus.Subscribe(func(b EventBus, s Source, e string) {
+		if s != b {
+			t.Fail()
+		}
+		if e != "test" {
+			t.Fail()
+		}
+	})
+
+	s := &successHandler{}
+	if false == bus.Subscribe(s) {
+		t.Fail()
+	}
+
+	w := &wrongEventHandler{}
+	if false == bus.Subscribe(w) {
+		t.Fail()
+	}
+
+	bus.SendAnonymous("test")
 }
 
 func TestSchedule(t *testing.T) {
@@ -150,7 +243,7 @@ func TestSchedule(t *testing.T) {
 		wg.Done()
 	})
 
-	bus.Schedule(time.Second, false, "test")
+	bus.Schedule(nil, time.Second, false, "test")
 	wg.Wait()
 }
 
@@ -166,6 +259,6 @@ func TestSchedulePeriodic(t *testing.T) {
 		wg.Done()
 	})
 
-	bus.Schedule(time.Second, true, "test")
+	bus.Schedule(nil, time.Second, true, "test")
 	wg.Wait()
 }
